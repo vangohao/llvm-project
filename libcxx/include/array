@@ -379,10 +379,31 @@ template <class _Tp, class... _Args, class = enable_if_t<__all<_IsSame<_Tp, _Arg
 array(_Tp, _Args...) -> array<_Tp, 1 + sizeof...(_Args)>;
 #endif
 
+namespace uni_hack_detail {
+template <class T, T... inds, class F>
+[[gnu::always_inline]] constexpr void loop(std::integer_sequence<T, inds...>,
+                                  F f [[maybe_unused]]) {
+  (f(std::integral_constant<T, inds>{}), ...);
+}
+}
+
+namespace uni_hack{
+template <class T, T count, class F>
+[[gnu::always_inline]] constexpr void loop(F f) {
+  uni_hack_detail::loop(std::make_integer_sequence<T, count>{}, f);
+}
+}
+
 template <class _Tp, size_t _Size>
 inline _LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_SINCE_CXX20 bool
 operator==(const array<_Tp, _Size>& __x, const array<_Tp, _Size>& __y) {
-  return std::equal(__x.begin(), __x.end(), __y.begin());
+  // return std::equal(__x.begin(), __x.end(), __y.begin());
+  bool result = true;
+  uni_hack::loop<size_t, _Size>([&](auto i) [[gnu::always_inline]] {
+    if (std::get<i>(__x) != std::get<i>(__y))
+      result = false;
+  });
+  return result;
 }
 
 #if _LIBCPP_STD_VER <= 17
